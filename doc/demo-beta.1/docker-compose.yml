@@ -6,9 +6,15 @@ services:
     image: lnpbp/rgbd:v0.1.0
     restart: unless-stopped
     entrypoint: "rgbd -vvvv"
+    volumes:
+      - ../../test:/var/lib/rgb/test
+    working_dir: /var/lib/rgb
   rgb-node-1:
     container_name: rgb-node-1
     image: lnpbp/rgbd:v0.1.0
     restart: unless-stopped
     entrypoint: "rgbd -vvvv"
+    volumes:
+      - ../../test:/var/lib/rgb/test
+    working_dir: /var/lib/rgb
 
