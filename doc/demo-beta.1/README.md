@@ -34,6 +34,7 @@ And then run a couple of nodes into separate terminals
 ```
 and setup aliases to ease calls to command-line interfaces:
 ```bash=
+cd doc/demo-beta.1
 alias rgb0-cli="./target/release/rgb-cli -d ./data0"
 alias rgb1-cli="./target/release/rgb-cli -d ./data1"
 ```
