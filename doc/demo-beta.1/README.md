@@ -80,23 +80,21 @@ rgb0-cli genesis help
 
 RGB-node does not handle wallet-related functionalities, it just performs RGB-specific tasks over data that will be provided by an external wallet such as [bitcoind](https://github.com/bitcoin/bitcoin). In particular, in order to demonstrate a basic workflow with issuance and a transfer, we will need:
 - an `issuance_utxo` to which `rgb-node-0` will bind newly issued asset
+- a `change_utxo` on which `rgb-node-0` receives asset change
 - a `receive_utxo` on which `rgb-node-1` receives assets
 - a partially signed bitcoin transaction (`transfer_psbt`), whose output pubkey will be tweaked to include a commitment to the transfer.
 
-For the purposes of this demo, since `rgb-node` has no knowledge of the blockchain, we can use "fake" data generated with a testnet or regtest bitcoin node. The following hardcoded values (used later) will also work:
+For the purposes of this demo, since `rgb-node` has no knowledge of the blockchain, we can use "fake" data generated with a testnet or regtest bitcoin node. The following hardcoded utxos (that will be used later) will also work:
 
 - `issuance_utxo`: `5aa2d0a8098371ee12b4b59f43ffe6a2de637341258af65936a5baa01da49e9b:0`
-- `change_utxo`: `5aa2d0a8098371ee12b4b59f43ffe6a2de637341258af65936a5baa01da49e9b:1`
+- `change_utxo`: `0c05cea88d0fca7d16ed6a26d622e7ea477f2e2ff25b9c023b8f06de08e4941a:1`
 - `receive_utxo`: `79d0191dab03ffbccc27500a740f20a75cb175e77346244a567011d3c86d2b0b:0`
-- `transfer_psbt` (base64-encoded, to save it to a file, you can `echo "<transfer_psbt>" | base64 -d > transfer.psbt`):
-```
-cHNidP8BAFICAAAAAZ38ZijCbFiZ/hvT3DOGZb/VXXraEPYiCXPfLTht7BJ2AQAAAAD/////AfA9zR0AAAAAFgAUezoAv9wU0neVwrdJAdCdpu8TNXkAAAAATwEENYfPAto/0AiAAAAAlwSLGtBEWx7IJ1UXcnyHtOTrwYogP/oPlMAVZr046QADUbdDiH7h1A3DKmBDck8tZFmztaTXPa7I+64EcvO8Q+IM2QxqT64AAIAAAACATwEENYfPAto/0AiAAAABuQRSQnE5zXjCz/JES+NTzVhgXj5RMoXlKLQH+uP2FzUD0wpel8itvFV9rCrZp+OcFyLrrGnmaLbyZnzB1nHIPKsM2QxqT64AAIABAACAAAEBKwBlzR0AAAAAIgAgLFSGEmxJeAeagU4TcV1l82RZ5NbMre0mbQUIZFuvpjIBBUdSIQKdoSzbWyNWkrkVNq/v5ckcOrlHPY5DtTODarRWKZyIcSEDNys0I07Xz5wf6l0F1EFVeSe+lUKxYusC4ass6AIkwAtSriIGAzcrNCNO18+cH+pdBdRBVXknvpVCsWLrAuGrLOgCJMALENkMak+uAACAAQAAgAAAAAAiBgKdoSzbWyNWkrkVNq/v5ckcOrlHPY5DtTODarRWKZyIcRDZDGpPrgAAgAAAAIAAAAAAACICA57/H1R6HV+S36K6evaslxpL0DukpzSwMVaiVritOh75EO3kXMUAAACAAAAAgAEAAIAA
-```
+- an example `transfer_psbt` can be found in the `doc/demo-beta.1/test` folder
 
 ### Asset issuance
 To issue an asset, run:
 ```bash=
-rgb0-cli fungible issue USDT "USD Tether" 1000000@5aa2d0a8098371ee12b4b59f43ffe6a2de637341258af65936a5baa01da49e9b:0
+rgb0-cli fungible issue USDT "USD Tether" 1000@5aa2d0a8098371ee12b4b59f43ffe6a2de637341258af65936a5baa01da49e9b:0
 ```
 This will create a new genesis that includes asset metadata and the allocation of the initial amount to the `<issuance_utxo>`. You can look into it by running:
 ```bash=
@@ -109,7 +107,7 @@ You can list known fungible assets with:
 ```bash=
 rgb0-cli fungible list
 ```
-From here you can get the `asset-id` that the receiving node will need to be able to create an invoice
+which also outputs its `asset-id`, which is needed to create invoices.
 
 ### Generate invoice
 In order to receive the new USDT, `rgb-node-1` needs to generate an invoice for it:
@@ -119,24 +117,29 @@ rgb1-cli fungible invoice <asset-id> 100 \
 ```
 This outputs `invoice` and `blinding_factor`.
 
-In order to be able to accept transfers related to this invoice, we will need the original `receive_utxo` and the `blinding_factor` that was used to include it in the invoice.
+To be able to accept transfers related to this invoice, we will need the original `receive_utxo` and the `blinding_factor` that was used to include it in the invoice.
 
 ### Transfer
-To transfer some amounts of asset to `rgb-node-1` to pay the new invoice, `rgb-node-0` needs to create a consignment and commit to it into a bitcoin transaction. So we will need the invoice and a partially signed bitcoin transaction that we will modify to include the commitment. So, save the a psbt (like the one hardcoded in [here](#premise)) into a file that can be read by `rgb-node-0`. Furthermore, `-i` and `-a` options allow to provide an input utxo from which to take asset and an allocation for the change.
+To transfer some amounts of asset to `rgb-node-1` to pay the new invoice, `rgb-node-0` needs to create a consignment and commit to it into a bitcoin transaction. So we will need the invoice and a partially signed bitcoin transaction that we will modify to include the commitment. Furthermore, `-i` and `-a` options allow to provide an input utxo from which to take asset and an allocation for the change in the form `<amount>@<utxo>`.
 
 ```bash=
-rgb-cli fungible transfer "<invoice>" /path/to/source_tx.psbt /path/to/consignment.rgb path/to/witness.psbt -i <issuance_utxo> -a 900@<change_utxo>
+# NB: pass the invoice between quotes to avoid misinterpretation of the & character into it
+rgb-cli fungible transfer "<invoice>" test/source_tx.psbt test/consignment.rgb test/witness.psbt \
+-i 79d0191dab03ffbccc27500a740f20a75cb175e77346244a567011d3c86d2b0b:0 \
+-a 900@0c05cea88d0fca7d16ed6a26d622e7ea477f2e2ff25b9c023b8f06de08e4941a:1
 ```
 This will write the consignment file and the psbt including the tweak (which is called *witness transaction*) at the provided paths.
+
+At this point the witness transaction should be signed and broadcasted, while the consignment is sent offchain to the peer.
 
 ### Accept
 To accept an incoming transfer you need to provide `rgb-node-1` with the consignment file received from `rgb-node-0`, the `receive_utxo` and the corresponding `blinding_factor` that were defined at invoice creation.
 ```bash=
-rgb1-cli fungible accept /path/to/consignment.rgb \
+rgb1-cli fungible accept test/consignment.rgb \
 79d0191dab03ffbccc27500a740f20a75cb175e77346244a567011d3c86d2b0b:0 \
 <blinding_factor>
 ```
-Now you are able to see the new allocation of 100 asset units at `<receive_utxo>` by running (under `known_allocations`):
+Now you are able to see the new allocation of 100 asset units at `<receive_utxo>` by running (in the `known_allocations` fild):
 ```bash=
 rgb1-cli fungible list -l
 ```
