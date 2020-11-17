@@ -25,18 +25,19 @@ We can proceed with the compilation of binaries:
 ```bash=
 git clone https://github.com/LNP-BP/rgb-node.git
 cd rgb-node
-cargo build --release
+git checkout <somewhere>
+cargo install --path . --all-features
 ```
 And then run a couple of nodes into separate terminals
 ```bash=
-./target/release/rgbd -vvvv -d ./data0
-./target/release/rgbd -vvvv -d ./data1
+rgbd -vvvv -d ./data0
+rgbd -vvvv -d ./data1
 ```
 and setup aliases to ease calls to command-line interfaces:
 ```bash=
 cd doc/demo-beta.1
-alias rgb0-cli="./target/release/rgb-cli -d ./data0"
-alias rgb1-cli="./target/release/rgb-cli -d ./data1"
+alias rgb0-cli="rgb-cli -d ./data0"
+alias rgb1-cli="rgb-cli -d ./data1"
 ```
 
 ## Docker
@@ -50,11 +51,15 @@ alias rgb1-cli="./target/release/rgb-cli -d ./data1"
 Clone the repository
 ```bash=
 git clone https://github.com/LNP-BP/rgb-node.git
+cd rgb-node
+git checkout <somewhere>
 ```
 and run a couple of nodes in docker
 ```bash=
-cd rgb-node/doc/demo-beta.1
-docker-compose up
+# build docker image (takes a while...)
+docker build -t rgb-node:demo .
+cd doc/demo-beta.1
+docker-compose up [-d]
 ```
 To get their respective logs you can run, for instance:
 ```bash=
@@ -139,7 +144,7 @@ rgb1-cli fungible accept test/consignment.rgb \
 79d0191dab03ffbccc27500a740f20a75cb175e77346244a567011d3c86d2b0b:0 \
 <blinding_factor>
 ```
-Now you are able to see the new allocation of 100 asset units at `<receive_utxo>` by running (in the `known_allocations` fild):
+Now you are able to see the new allocation of 100 asset units at `<receive_utxo>` by running (in the `known_allocations` field):
 ```bash=
 rgb1-cli fungible list -l
 ```
